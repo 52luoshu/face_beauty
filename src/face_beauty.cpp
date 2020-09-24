@@ -1,4 +1,5 @@
 #include "face_beauty.h"
+//#define SHARPEN
 
 FaceBeauty::FaceBeauty(){}
 
@@ -42,49 +43,53 @@ bool  FaceBeauty::Init(int width, int height, int enlargeEye, int shrinkFace, st
 * @@brief: 实现大眼、瘦脸美颜效果
 * @return: true-执行成功；false-执行失败
 * @param input: 当前帧图像
-* @param output: 替换背景后的图像
+* @param output: 完成美颜效果的图像
 * @param fmt: 输图像数据格式
 **/
 bool FaceBeauty::Process(uint8_t *input, uint8_t *output, PixelFmt fmt) {
 	if ((mInited == false) || (fmt == PixelFmt_UNKNOWN) || (input == nullptr) || (output == nullptr)) {
 		return false;
 	}
-	cv::Mat frameBGR;
+	
+	cv::UMat UframeBGR;
 	if (fmt == PixelFmt_I420) {
-		cv::Mat frameI420 = cv::Mat(mHeight * 3 / 2, mWidth, CV_8UC1, input);
-		cv::cvtColor(frameI420, frameBGR, cv::COLOR_YUV2BGR_I420);
+		cv::UMat UframeI420 = cv::Mat(mHeight * 3 / 2, mWidth, CV_8UC1, input).getUMat(cv::ACCESS_READ);
+		cv::cvtColor(UframeI420, UframeBGR, cv::COLOR_YUV2BGR_I420);
 	}
 	if (fmt == PixelFmt_RGB) {
-		cv::Mat frameARGB = cv::Mat(mHeight, mWidth, CV_8UC4, input);
-		std::vector<cv::Mat> frmChARGB;
-		cv::split(frameARGB, frmChARGB);
-		std::vector<cv::Mat> frmChBGR;
-		frmChBGR = { frmChARGB[3],frmChARGB[2],frmChARGB[1] };
-		cv::merge(frmChBGR, frameBGR);
+		cv::UMat UframeARGB = cv::Mat(mHeight, mWidth, CV_8UC4, input).getUMat(cv::ACCESS_READ);
+		std::vector<cv::UMat> UfrmChARGB;
+		cv::split(UframeARGB, UfrmChARGB);
+		std::vector<cv::UMat> UfrmChBGR;
+		UfrmChBGR = { UfrmChARGB[3],UfrmChARGB[2],UfrmChARGB[1] };
+		cv::merge(UfrmChBGR, UframeBGR);
 	}
 	if (fmt == PixelFmt_UYVY) {
-		cv::Mat frameUYVY = cv::Mat(mHeight, mWidth, CV_8UC2, input);
-		cv::cvtColor(frameUYVY, frameBGR, cv::COLOR_YUV2BGR_UYVY);
+		cv::UMat UframeUYVY = cv::Mat(mHeight, mWidth, CV_8UC2, input).getUMat(cv::ACCESS_READ);
+		cv::cvtColor(UframeUYVY, UframeBGR, cv::COLOR_YUV2BGR_UYVY);
 	}
 	if (fmt == PixelFmt_YUY2) {
-		cv::Mat frameYUY2 = cv::Mat(mHeight, mWidth, CV_8UC2, input);
-		cv::cvtColor(frameYUY2, frameBGR, cv::COLOR_YUV2BGR_YUY2);
+		cv::UMat UframeYUY2 = cv::Mat(mHeight, mWidth, CV_8UC2, input).getUMat(cv::ACCESS_READ);
+		cv::cvtColor(UframeYUY2, UframeBGR, cv::COLOR_YUV2BGR_YUY2);
 	}
 	if (fmt == PixelFmt_YVYU) {
-		cv::Mat frameYVYU = cv::Mat(mHeight, mWidth, CV_8UC2, input);
-		cv::cvtColor(frameYVYU, frameBGR, cv::COLOR_YUV2BGR_YVYU);
+		cv::UMat UframeYVYU = cv::Mat(mHeight, mWidth, CV_8UC2, input).getUMat(cv::ACCESS_READ);
+		cv::cvtColor(UframeYVYU, UframeBGR, cv::COLOR_YUV2BGR_YVYU);
 	}
 	if (fmt == PixelFmt_HDYC) {
 		//TODO
 		return false;
 	}
-
+	cv::Mat frameBGR = UframeBGR.getMat(cv::ACCESS_READ);
 	std::vector<dlib::full_object_detection> landmarks;
 	landmarks = faceLandmarkDetect(frameBGR);
 	cv::Mat frameEnlargeEye = bigEye(frameBGR, landmarks);
 	cv::Mat frameShrinkFace = liftFace(frameEnlargeEye, landmarks);
-	cv::Mat retI420;
-	cv::cvtColor(frameShrinkFace, retI420, cv::COLOR_BGR2YUV_I420);
+	cv::Mat frameSkinDenise = skinDenise(frameShrinkFace);
+	//cv::Mat frameEnhanceContrast = contrastEnhance(frameSkinDenise, 11, 255);
+	cv::UMat UretI420;
+	cv::cvtColor(frameSkinDenise.getUMat(cv::ACCESS_READ), UretI420, cv::COLOR_BGR2YUV_I420);
+	cv::Mat retI420 = UretI420.getMat(cv::ACCESS_READ);
 	memcpy_s(output, mWidth * mHeight * 3 / 2, retI420.data, mWidth * mHeight * 3 / 2);
 	return true;
 }
@@ -146,9 +151,9 @@ cv::Mat FaceBeauty::drawLandmarks(cv::Mat& frame) {
 * @param img: 待检测图像
 **/
 std::vector<dlib::full_object_detection> FaceBeauty::faceLandmarkDetect(cv::Mat& img) {
-	cv::Mat cvImgGray;
-	cv::cvtColor(img, cvImgGray, cv::COLOR_BGR2GRAY);
-	dlib::cv_image<unsigned char> dlibImgGray(cvImgGray);
+	cv::UMat UcvImgGray;
+	cv::cvtColor(img.getUMat(cv::ACCESS_READ), UcvImgGray, cv::COLOR_BGR2GRAY);
+	dlib::cv_image<unsigned char> dlibImgGray(UcvImgGray.getMat(cv::ACCESS_READ));
 	
 	mDlibRectsFaces.clear();
 	mDlibDetsShapes.clear();
@@ -375,9 +380,107 @@ cv::Mat FaceBeauty::liftFace(cv::Mat& img, std::vector<dlib::full_object_detecti
 
 
 
+/**
+* @@brief: 肤质保留的磨皮美白算法
+* @return: 磨皮后的图像
+* @param img: 原始输入图像
+**/
+cv::Mat FaceBeauty::skinDenise(cv::Mat& img) {
+	cv::UMat Uimg = img.getUMat(cv::ACCESS_READ);
+
+	int deniseDegree = 3;
+	int textureDegree = 2;
+	int dx = deniseDegree * 5;
+	int fc = deniseDegree * 12.5;
+	double transparency = 0.1;
+	cv::UMat temp1;
+	cv::UMat temp2;
+	cv::UMat temp3;
+	cv::UMat temp4;
+
+	cv::bilateralFilter(Uimg, temp1, dx, fc, fc);
+
+	cv::UMat temp22;
+	
+	cv::subtract(temp1, Uimg, temp22);
+	cv::add(temp22, cv::Scalar(128, 128, 128, 128), temp2);
+	cv::GaussianBlur(temp2, temp3, cv::Size(2 * textureDegree - 1, 2 * textureDegree - 1), 0, 0);
+
+	cv::UMat temp44;
+	temp3.convertTo(temp44, temp3.type(), 2, -255);
+	cv::add(Uimg, temp44, temp4);
+	cv::UMat dst;
+	cv::addWeighted(Uimg, transparency, temp4, 1 - transparency, 0.0, dst);
+#ifdef SHARPEN
+	cv::Mat kernel(3, 3, CV_32F, cv::Scalar(0));
+	kernel.at<float>(1, 1) = 5.0;
+	kernel.at<float>(0, 1) = -1.0;
+	kernel.at<float>(2, 1) = -1.0;
+	kernel.at<float>(1, 0) = -1.0;
+	kernel.at<float>(1, 2) = -1.0;
+	cv::UMat Ukernel = kernel.getUMat(cv::ACCESS_READ);
+	cv::filter2D(dst, dst, dst.depth(), Ukernel);
+#endif // SHARPEN
+	cv::Mat ret;
+	cv::add(dst.getMat(cv::ACCESS_READ), cv::Scalar(10, 10, 10), ret);
+
+	return ret;
+}
 
 
 
+/**
+* @@brief: 自适应图像局部对比度增强
+* @return: 对比度增强后的图像
+* @param img: 原始输入图像
+* @param winSize: 局部均值窗口大小
+* @param maxCg: 增强幅度的上限
+**/
+cv::Mat FaceBeauty::contrastEnhance(cv::Mat& img, int winSize, int maxCg) {
+	cv::Mat ycc;
+	cv::cvtColor(img, ycc, cv::COLOR_BGR2YCrCb);
 
+	std::vector<cv::Mat> channels(3);
+	cv::split(ycc, channels);
+
+	cv::Mat localMeansMatrix(img.rows, img.cols, CV_32FC1);
+	cv::Mat localVarianceMatrix(img.rows, img.cols, CV_32FC1);
+
+	cv::Mat temp = channels[0].clone();
+
+	cv::Scalar mean;
+	cv::Scalar dev;
+	cv::meanStdDev(temp, mean, dev);
+
+	float meansGlobal = mean.val[0];
+	cv::Mat enhanceMatrix(img.rows, img.cols, CV_8UC1);
+
+	for (int i = 0; i < img.rows; i++) {
+		for (int j = 0; j < img.cols; j++) {
+			if (localVarianceMatrix.at<float>(i, j) >= 0.01) {
+				float cg = 0.2*meansGlobal / localVarianceMatrix.at<float>(i, j);
+				float cgs = cg > maxCg ? maxCg : cg;
+				cgs = cgs < 1 ? 1 : cgs;
+
+				int e = localMeansMatrix.at<float>(i, j) + cgs * (temp.at<uchar>(i, j) - localMeansMatrix.at<float>(i, j));
+				if (e > 255) {
+					e = 255;
+				}
+				else if (e < 0) {
+					e = 0;
+				}
+				enhanceMatrix.at<uchar>(i, j) = e;
+			}
+			else {
+				enhanceMatrix.at<uchar>(i, j) = temp.at<uchar>(i, j);
+			}
+		}
+	}
+	channels[0] = enhanceMatrix;
+	cv::merge(channels, ycc);
+	cv::Mat dst;
+	cv::cvtColor(ycc, dst, cv::COLOR_YCrCb2BGR);
+	return dst;
+}
 
 

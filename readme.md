@@ -1,5 +1,5 @@
 ### Brief
-Enlarge eyes and shrink face, using opencv and dlib.
+This module integrates a variety of beauty functions, include enlarge eyes, shrink face, microdermabrasion and whitening algorithm that preserves skin texture. And some releated post-processing methods, such as adaptive contrast enhancement and sharpen.
 
 ### Structure
 

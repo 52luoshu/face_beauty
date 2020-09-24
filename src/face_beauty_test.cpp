@@ -4,6 +4,7 @@
 * Date: 2020.09.22
 ************************************************************************************/
 #include "face_beauty.h"
+#define BEAUTY
 
 void demo_YUV_I420();
 
@@ -37,14 +38,16 @@ void demo_YUV_I420() {
 			std::cout << "can't get frame." << std::endl;
 			break;
 		}
+		//cv::resize(frame, frame, cv::Size(width, height));
 		cv::imshow("input", frame);
 		cv::cvtColor(frame, frame, cv::COLOR_BGR2YUV_I420);
 
 		//pFrame指向当前YUV_I420格式图像，执行美颜操作，参数依次为：
 		//指向输入图像的指针、指向输出图像的指针、图像格式
+#ifdef BEAUTY
 		pFrame = frame.ptr<uint8_t>(0);
 		faceBeauty.Process(pFrame, pRet, pixfmt);
-
+#endif // BEAUTY
 		///结果数据可视化
 		cv::Mat result(height * 3 / 2, width, CV_8UC1, pRet);
 		cv::imshow("output_yuv_i420", result);

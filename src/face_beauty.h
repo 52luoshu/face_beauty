@@ -13,6 +13,14 @@
 *	(5)	YUY2				YUV_I420
 *	(6)	UYVY				YUV_I420
 ************************************************************************************/
+#ifdef _DEBUG
+#pragma comment(lib, "dlib19.20.0_debug_32bit_msvc1916.lib")
+#pragma comment(lib, "opencv_world342d.lib")
+#else
+#pragma comment(lib, "dlib19.20.0_release_32bit_msvc1916.lib")
+#pragma comment(lib, "opencv_world342.lib")
+#endif
+
 
 #ifndef FACE_BEAUTY_H
 #define FACE_BEAUTY_H
@@ -81,7 +89,7 @@ public:
 	* @@brief: 实现大眼、瘦脸美颜效果
 	* @return: true-执行成功；false-执行失败
 	* @param input: 当前帧图像
-	* @param output: 替换背景后的图像
+	* @param output: 完成美颜效果的图像
 	* @param fmt: 输图像数据格式
 	**/
 	bool Process(uint8_t *input, uint8_t *output, PixelFmt fmt);
@@ -171,6 +179,25 @@ private:
 	**/
 	cv::Mat liftFaceAlgo(cv::Mat& img, int startX, int startY, int endX, int endY, int radius);
 
+
+
+	/**
+	* @@brief: 肤质保留的磨皮美白算法
+	* @return: 磨皮后的图像
+	* @param img: 原始输入图像
+	**/
+	cv::Mat skinDenise(cv::Mat& img);
+
+
+
+	/**
+	* @@brief: 自适应图像局部对比度增强
+	* @return: 对比度增强后的图像
+	* @param img: 原始输入图像
+	* @param winSize: 局部均值窗口大小
+	* @param maxCg: 增强幅度的上限
+	**/
+	cv::Mat contrastEnhance(cv::Mat& img, int winSize, int maxCg);
 
 
 };
